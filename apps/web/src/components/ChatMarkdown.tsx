@@ -154,6 +154,7 @@ import {
   serializeTableElementToMarkdown,
 } from "../markdown-clipboard";
 import { remarkNormalizeListItemIndentation } from "../markdown-list-indentation";
+import { rehypeTextDirection } from "../markdown-text-direction";
 import {
   extractMarkdownLinkHrefs,
   isWindowsDrivePathHref,
@@ -572,11 +573,14 @@ const CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS = [
   remarkNormalizeLinksAndTagInlineCode,
 ] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
 
+const CHAT_MARKDOWN_REHYPE_PLUGINS_WITHOUT_RAW_HTML = [rehypeTextDirection];
+
 const CHAT_MARKDOWN_REHYPE_PLUGINS = [
   rehypePreserveBareAnchorPlaceholders,
   rehypeRaw,
   rehypePreserveImageSourceMeta,
   [rehypeSanitize, CHAT_MARKDOWN_SANITIZE_SCHEMA],
+  rehypeTextDirection,
 ] satisfies NonNullable<ReactMarkdownOptions["rehypePlugins"]>;
 
 /** GitHub's own five alert kinds, in its colors: the glyph names the urgency, the title says it. */
@@ -945,7 +949,8 @@ function MarkdownTable({ children, ...props }: React.ComponentProps<"table">) {
 function MarkdownDetails({
   children,
   open = false,
-}: Pick<React.ComponentProps<"details">, "children" | "open">) {
+  dir,
+}: Pick<React.ComponentProps<"details">, "children" | "open" | "dir">) {
   const [isOpen, setIsOpen] = useState(open);
   const childNodes = Children.toArray(children);
   const summaryIndex = childNodes.findIndex(
@@ -956,10 +961,13 @@ function MarkdownDetails({
     isValidElement<{ children?: ReactNode }>(summaryNode) && summaryNode.props.children
       ? summaryNode.props.children
       : "Details";
+  const summaryDirection = isValidElement<{ dir?: string }>(summaryNode)
+    ? summaryNode.props.dir
+    : undefined;
   const content = childNodes.filter((_, index) => index !== summaryIndex);
 
   return (
-    <div className="my-2 border-y border-border/60">
+    <div dir={dir} className="my-2 border-y border-border/60">
       <Collapsible
         defaultOpen={open}
         onOpenChange={setIsOpen}
@@ -967,14 +975,15 @@ function MarkdownDetails({
         data-markdown-details-open={isOpen ? "true" : "false"}
       >
         <CollapsibleTrigger
-          className="flex w-full items-center gap-2 py-2 text-left text-sm font-medium text-foreground data-panel-open:[&_svg]:rotate-90"
+          dir={summaryDirection}
+          className="flex w-full items-center gap-2 py-2 text-start text-sm font-medium text-foreground data-panel-open:[&_svg]:rotate-90"
           data-markdown-details-summary=""
         >
           <ChevronRightIcon
             className="size-4 shrink-0 text-muted-foreground transition-transform"
             aria-hidden
           />
-          <span>{summary}</span>
+          <span className="min-w-0 flex-1 text-start">{summary}</span>
         </CollapsibleTrigger>
         <CollapsiblePanel>
           <div
@@ -1019,6 +1028,7 @@ export function MarkdownCodeBlockFrame({
 }) {
   return (
     <Wrapper
+      dir="ltr"
       className="chat-markdown-codeblock my-[0.65rem] overflow-hidden rounded-lg border border-border/70 bg-secondary leading-snug dark:border-transparent dark:bg-input/32"
       data-language={language}
       data-wrap={wrapped ? "true" : "false"}
@@ -2467,6 +2477,7 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
               kind="mention"
               render={<a href={href} />}
               className={MARKDOWN_FILE_LINK_CLASS_NAME}
+              dir="ltr"
               data-markdown-copy={copyMarkdown}
               onClick={(event) => {
                 event.preventDefault();
@@ -2492,6 +2503,7 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
               aria-label={`File options for ${label}`}
               aria-haspopup="menu"
               className={cn(MARKDOWN_FILE_LINK_CLASS_NAME, "select-text")}
+              dir="ltr"
               data-markdown-copy={copyMarkdown}
               onClick={handleContextMenu}
               onContextMenu={handleContextMenu}
@@ -3085,8 +3097,12 @@ const CHAT_MARKDOWN_COMPONENTS = {
     // Not a <blockquote>: the stylesheet mutes those, and an alert's body is ordinary
     // text under a colored title — which is how the host renders it.
     return (
-      <div role="note" className={cn("my-1 border-l-2 pl-3", alert.borderClassName)}>
-        <p className={cn("flex items-center gap-1.5 font-medium", alert.titleClassName)}>
+      <div
+        dir={props.dir}
+        role="note"
+        className={cn("my-1 border-s-2 ps-3", alert.borderClassName)}
+      >
+        <p dir="ltr" className={cn("flex items-center gap-1.5 font-medium", alert.titleClassName)}>
           <alert.Icon aria-hidden className="size-3.5 shrink-0" />
           {alert.label}
         </p>
@@ -3422,7 +3438,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       }
     }
     return (
-      <code {...props} className={className}>
+      <code {...props} dir={props.dir ?? "ltr"} className={className}>
         {children}
       </code>
     );
@@ -3559,8 +3575,12 @@ const CHAT_MARKDOWN_COMPONENTS = {
   table: function MarkdownTableRenderer({ node: _node, ...props }) {
     return <MarkdownTable {...props} />;
   },
-  details: function MarkdownDetailsRenderer({ node: _node, children, open: detailsOpen }) {
-    return <MarkdownDetails open={detailsOpen}>{children}</MarkdownDetails>;
+  details: function MarkdownDetailsRenderer({ node: _node, children, open: detailsOpen, dir }) {
+    return (
+      <MarkdownDetails open={detailsOpen} dir={dir}>
+        {children}
+      </MarkdownDetails>
+    );
   },
   pre: function MarkdownPre({ node, children, ...props }) {
     const { resolvedTheme, diffThemeName, expandMedia, isStreaming, onRunShellCommand, text } = use(
@@ -3568,7 +3588,11 @@ const CHAT_MARKDOWN_COMPONENTS = {
     );
     const codeBlock = extractCodeBlock(children);
     if (!codeBlock) {
-      return <pre {...props}>{children}</pre>;
+      return (
+        <pre {...props} dir="ltr">
+          {children}
+        </pre>
+      );
     }
 
     const language = extractFenceLanguage(codeBlock.className);
@@ -3576,13 +3600,17 @@ const CHAT_MARKDOWN_COMPONENTS = {
     const highlightedCode = (
       <RenderErrorBoundary
         resetKeys={[codeBlock.code, language, diffThemeName, isStreaming]}
-        fallback={<pre {...props}>{children}</pre>}
+        fallback={
+          <pre {...props} dir="ltr">
+            {children}
+          </pre>
+        }
       >
         {/* Reserve the block's height but stay hidden until Shiki has colored
            it, so plain text never flashes before the highlighted version. */}
         <Suspense
           fallback={
-            <pre {...props} className="invisible" aria-hidden>
+            <pre {...props} dir="ltr" className="invisible" aria-hidden>
               {children}
             </pre>
           }
@@ -3674,7 +3702,11 @@ function ChatMarkdown({
       <ChatMarkdownRendererContext value={componentState}>
         <ReactMarkdown
           remarkPlugins={remarkPlugins}
-          rehypePlugins={parseRawHtml ? CHAT_MARKDOWN_REHYPE_PLUGINS : undefined}
+          rehypePlugins={
+            parseRawHtml
+              ? CHAT_MARKDOWN_REHYPE_PLUGINS
+              : CHAT_MARKDOWN_REHYPE_PLUGINS_WITHOUT_RAW_HTML
+          }
           skipHtml={false}
           components={CHAT_MARKDOWN_COMPONENTS}
           urlTransform={markdownUrlTransform}

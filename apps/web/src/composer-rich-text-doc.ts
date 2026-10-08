@@ -68,7 +68,7 @@ export const ComposerCodeExtension = Code.extend({
   // ArrowRight leaves code through the caret stops at styled edges, so the
   // stock exit (inserting a space at the end of a line) is not needed.
   exitable: false,
-});
+}).configure({ HTMLAttributes: { dir: "ltr" } });
 
 /**
  * Tiptap's block extensions each bind a chord that turns the current block
@@ -127,6 +127,20 @@ export const ComposerTaskItemExtension = TaskItem.extend({
   },
   addKeyboardShortcuts() {
     return withoutBlockChords(this.parent?.(), LIST_NESTING_KEYS);
+  },
+  // `dir="auto"` on the <li> flips the checkbox row for RTL tasks. The label's
+  // own `dir` keeps its hidden English a11y text out of that detection.
+  addNodeView() {
+    const renderNodeView = this.parent?.();
+    if (!renderNodeView) return null;
+    return (props) => {
+      const view = renderNodeView(props);
+      if (view.dom instanceof HTMLElement) {
+        view.dom.dir = "auto";
+        view.dom.firstElementChild?.setAttribute("dir", "auto");
+      }
+      return view;
+    };
   },
 }).configure({ nested: true });
 
@@ -243,7 +257,11 @@ const ComposerListItemExtension = ListItem.extend({
   // The source marker rides on the item so the composer draws `3)` and a
   // nested `7.` as written, rather than the browser own numbering.
   renderHTML({ node, HTMLAttributes }) {
-    return ["li", mergeAttributes(HTMLAttributes, { "data-marker": node.attrs.marker }), 0];
+    return [
+      "li",
+      mergeAttributes(HTMLAttributes, { "data-marker": node.attrs.marker, dir: "auto" }),
+      0,
+    ];
   },
 });
 
@@ -276,7 +294,7 @@ const ComposerBlockquoteExtension = Blockquote.extend({
   addKeyboardShortcuts() {
     return withoutBlockChords(this.parent?.(), ["Mod-Shift-b"]);
   },
-});
+}).configure({ HTMLAttributes: { dir: "auto" } });
 
 /**
  * A rule keeps the exact line it was written as (`---`, `* * *`, `_____`), so

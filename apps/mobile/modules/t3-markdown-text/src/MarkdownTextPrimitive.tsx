@@ -11,6 +11,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { setMarkdownSelectionHandleColor } from "./T3MarkdownTextSelectionModule";
+export { naturalTextDirection, setNaturalTextAlignment } from "./T3MarkdownTextSelectionModule";
 import T3MarkdownTextRunNativeComponent from "./T3MarkdownTextRunNativeComponent";
 import T3MarkdownTextNativeComponent from "./T3MarkdownTextNativeComponent";
 import { flattenStyles } from "./util";

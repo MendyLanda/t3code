@@ -49,12 +49,12 @@ export function QuestionAnswerHistory(props: {
       ].map((questionId) => (
         <View key={questionId} className="gap-1">
           {props.answer.questionTextById?.[questionId] ? (
-            <Text className="text-sm text-foreground-muted">
+            <Text naturalDirection className="text-sm text-foreground-muted">
               {props.answer.questionTextById[questionId]}
             </Text>
           ) : null}
           {getQuestionAnswerText(props.answer.answers[questionId]) ? (
-            <Text className="ml-3 text-sm text-foreground-muted">
+            <Text naturalDirection className="ml-3 text-sm text-foreground-muted">
               {getQuestionAnswerText(props.answer.answers[questionId])}
             </Text>
           ) : null}

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { decodeComposerContextFragment } from "@t3tools/shared/composerContextClipboard";
 import {
   findNodeHandle,
@@ -25,6 +25,8 @@ import type {
 import {
   installMarkdownCopySanitizer,
   renderAndroidContextChip,
+  setNaturalTextAlignment,
+  naturalTextDirection,
 } from "./T3MarkdownTextSelectionModule";
 import { parseComposerContextHref } from "@t3tools/shared/composerContextReferences";
 import { contextChipPresentation } from "./nativeMarkdownText";
@@ -197,6 +199,13 @@ export function NativeMarkdownSelectableText(props: {
   readonly textStyle: NativeMarkdownTextStyle;
   readonly onLinkPress?: (href: string) => void;
 }) {
+  const textTag = useRef<number | null>(null);
+  // RN can replace attributed text on any prop update, even without a new layout event.
+  useEffect(() => {
+    if (Platform.OS === "android" && textTag.current !== null) {
+      setNaturalTextAlignment(textTag.current);
+    }
+  });
   const colorScheme = useColorScheme();
   const menu = useContext(MarkdownFileContextMenuContext);
   const contextClipboardFragment = useContext(MarkdownContextClipboardContext);
@@ -285,6 +294,15 @@ export function NativeMarkdownSelectableText(props: {
       return { key: `${signature}:${occurrence}`, run, text, linkIcon, chip, androidChip };
     });
   }, [props.runs, props.textStyle, contextRecords]);
+  // RN measures inline views before TextView draws: match its first-strong direction for
+  // measurement, then use paragraph spans so mixed paragraphs also draw at their own start.
+  const direction = useMemo(
+    () =>
+      Platform.OS === "android"
+        ? naturalTextDirection(keyedRuns.map(({ text }) => text).join(""))
+        : undefined,
+    [keyedRuns],
+  );
   const ranges = nativeMarkdownContextCopyRanges(
     keyedRuns.map(({ run, text, linkIcon, androidChip }) => ({
       run,
@@ -298,10 +316,16 @@ export function NativeMarkdownSelectableText(props: {
     : "";
   const attachAndroidText = useCallback(
     (textView: TextInstance | null) => {
-      if (Platform.OS !== "android" || !containsInlineIcon || !textView) return;
+      if (Platform.OS !== "android") return;
+      if (!textView) {
+        textTag.current = null;
+        return;
+      }
       const reactTag = findNodeHandle(textView);
+      textTag.current = reactTag ?? null;
       if (typeof reactTag === "number") {
-        installMarkdownCopySanitizer(reactTag, contextClipboardConfig);
+        setNaturalTextAlignment(reactTag);
+        if (containsInlineIcon) installMarkdownCopySanitizer(reactTag, contextClipboardConfig);
       }
     },
     [containsInlineIcon, contextClipboardConfig],
@@ -332,6 +356,11 @@ export function NativeMarkdownSelectableText(props: {
     <MarkdownTextPrimitive
       key={appearanceKey}
       nativeTextRef={attachAndroidText}
+      onLayout={() => {
+        if (Platform.OS === "android" && textTag.current !== null) {
+          setNaturalTextAlignment(textTag.current);
+        }
+      }}
       contextClipboardConfig={contextClipboardConfig}
       accessibilityLabel={
         Platform.OS === "android" && containsInlineIcon
@@ -343,6 +372,7 @@ export function NativeMarkdownSelectableText(props: {
       selectionColor={props.textStyle.selectionColor}
       selectionHandleColor={props.textStyle.selectionHandleColor}
       style={{
+        direction,
         flexShrink: 1,
         minWidth: 0,
         color: props.textStyle.color,

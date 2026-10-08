@@ -1,6 +1,8 @@
 import { requireOptionalNativeModule } from "expo";
 
 interface T3MarkdownTextSelectionNativeModule {
+  readonly naturalTextDirection?: (text: string) => "ltr" | "rtl";
+  readonly setNaturalTextAlignment?: (reactTag: number) => void;
   readonly setSelectionHandleColor?: (reactTag: number, color: number) => void;
   readonly installCopySanitizer: (reactTag: number, contextClipboardConfig: string) => void;
   readonly renderContextChip?: (payloadJson: string) => {
@@ -23,6 +25,14 @@ export function installMarkdownCopySanitizer(reactTag: number, contextClipboardC
 
 export function setMarkdownSelectionHandleColor(reactTag: number, color: number): void {
   nativeModule?.setSelectionHandleColor?.(reactTag, color);
+}
+
+export function setNaturalTextAlignment(reactTag: number): void {
+  nativeModule?.setNaturalTextAlignment?.(reactTag);
+}
+
+export function naturalTextDirection(text: string): "ltr" | "rtl" {
+  return nativeModule?.naturalTextDirection?.(text) ?? "ltr";
 }
 
 export function renderAndroidContextChip(payloadJson: string) {
