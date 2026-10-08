@@ -119,6 +119,39 @@ node ../../scripts/mobile-native-static-check.ts
 
 The native lint task runs SwiftLint for Swift plus ktlint and detekt for Kotlin. Missing native tools are reported as warnings and skipped locally. CI installs the default toolset from `apps/mobile/Brewfile` before running the native checks.
 
+## Personal iPhone builds
+
+This fork has a `personal` profile for an ad hoc build named `T3 Code Personal`,
+with bundle ID `com.mendylanda.t3code`. It runs without Metro and uses your Apple
+team and Expo project. Automatic updates are disabled; install a new build to
+get changes.
+
+From `apps/mobile`, sign in and create your Expo project:
+
+```bash
+npx eas-cli login
+T3CODE_MOBILE_FORK=1 npx eas-cli init
+```
+
+EAS cannot edit this dynamic app config. Copy the project ID it prints into the
+repository-root `.env.local`, along with your Expo username and Apple Team ID:
+
+```dotenv
+T3CODE_EXPO_OWNER=your-expo-username
+T3CODE_EXPO_PROJECT_ID=your-eas-project-id
+T3CODE_APPLE_TEAM_ID=your-apple-team-id
+```
+
+Register both iPhones with `npx eas-cli device:create`, then build:
+
+```bash
+npx eas-cli build --profile personal --platform ios
+```
+
+Open the finished build's install link on each registered phone. Direct and
+Tailscale connections work without T3 Connect. Background push needs a relay
+configured for your app and signing team.
+
 ## EAS Builds
 
 Preview and production variants use Expo fingerprinting so OTA updates only reach binaries with matching native dependencies, config plugins, and patches. CI uses the `preview:dev` profile to reuse a compatible native build when possible.
