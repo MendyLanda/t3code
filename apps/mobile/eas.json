@@ -27,6 +27,7 @@
     },
     "personal": {
       "extends": "preview",
+      "node": "24.13.1",
       "channel": "personal",
       "env": {
         "T3CODE_MOBILE_FORK": "1",

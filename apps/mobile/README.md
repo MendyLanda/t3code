@@ -137,10 +137,15 @@ EAS cannot edit this dynamic app config. Copy the project ID it prints into the
 repository-root `.env.local`, along with your Expo username and Apple Team ID:
 
 ```dotenv
+T3CODE_MOBILE_FORK=1
 T3CODE_EXPO_OWNER=your-expo-username
 T3CODE_EXPO_PROJECT_ID=your-eas-project-id
 T3CODE_APPLE_TEAM_ID=your-apple-team-id
 ```
+
+Set the three account IDs above as plaintext variables in your Expo project's
+`preview` environment too. EAS excludes `.env.local` from the build upload, so
+cloud builds need those values in the Expo environment.
 
 Register both iPhones with `npx eas-cli device:create`, then build:
 
