@@ -31,6 +31,7 @@
       "corepack": false,
       "pnpm": "11.10.0",
       "channel": "personal",
+      "autoIncrement": true,
       "env": {
         "T3CODE_MOBILE_FORK": "1",
         "MOBILE_VERSION_POLICY": "appVersion"

@@ -161,6 +161,19 @@ Open the finished build's install link on each registered phone. Direct and
 Tailscale connections work without T3 Connect. Background push needs a relay
 configured for your app and signing team.
 
+To enable T3 Connect, set `T3CODE_CLERK_PUBLISHABLE_KEY`,
+`T3CODE_CLERK_JWT_TEMPLATE`, and `T3CODE_RELAY_URL` in `.env.local` and the Expo
+`preview` environment before building. The root `.env.example` has the public
+values for T3's service. See [T3 Connect setup](../../docs/operations/connect-setup.md)
+for a separate service.
+
+A custom iPhone app also needs its Apple Team ID and bundle ID registered by
+the Clerk instance's owner for full native sign-in support. See
+[Clerk's production guide](https://clerk.com/docs/guides/development/deployment/expo).
+Check sign-in on the installed app; adding public settings alone does not
+verify it. T3's push credentials cannot send notifications or remote Live
+Activity updates to an app signed by your Apple team.
+
 ## EAS Builds
 
 Preview and production variants use Expo fingerprinting so OTA updates only reach binaries with matching native dependencies, config plugins, and patches. CI uses the `preview:dev` profile to reuse a compatible native build when possible.
