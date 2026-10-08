@@ -126,6 +126,10 @@ with bundle ID `com.mendylanda.t3code`. It runs without Metro and uses your Appl
 team and Expo project. Automatic updates are disabled; install a new build to
 get changes.
 
+Use Node 24.13.1 or a newer Node 24 release for these commands. Node 22 cannot
+load this app's TypeScript config imports. With nvm, run `nvm install 24` and
+`nvm use 24` first.
+
 From `apps/mobile`, sign in and create your Expo project:
 
 ```bash
