@@ -123,8 +123,8 @@ The native lint task runs SwiftLint for Swift plus ktlint and detekt for Kotlin.
 
 This fork has a `personal` profile for an ad hoc build named `T3 Code Personal`,
 with bundle ID `com.mendylanda.t3code`. It runs without Metro and uses your Apple
-team and Expo project. Automatic updates are disabled; install a new build to
-get changes.
+team and Expo project. It receives compatible Expo updates from the `personal`
+channel. Builds made before updates were enabled need one manual replacement.
 
 Use Node 24.13.1 or a newer Node 24 release for these commands. Node 22 cannot
 load this app's TypeScript config imports. With nvm, run `nvm install 24` and
@@ -173,6 +173,42 @@ the Clerk instance's owner for full native sign-in support. See
 Check sign-in on the installed app; adding public settings alone does not
 verify it. T3's push credentials cannot send notifications or remote Live
 Activity updates to an app signed by your Apple team.
+
+### Automatic updates
+
+The fork's `Personal iPhone updates` workflow runs when mobile code changes on
+`personal`. It publishes an Expo update when a finished build has the same
+native fingerprint. Otherwise, it starts a `personal:testflight` build and
+uploads it to your own App Store Connect app. The workflow also refreshes the
+TestFlight build each month because builds expire after 90 days.
+
+Install the app through TestFlight and turn on **Automatic Updates** on its
+TestFlight page. Expo updates download within the app and apply when it next
+goes into the background. Native changes arrive as full TestFlight builds.
+The `Personal` tester group is private; uploading a build does not publish it
+on the App Store.
+
+The workflow uses the repository secret `PERSONAL_EXPO_TOKEN`. Its Expo
+environment is `preview`, so keep `T3CODE_MOBILE_FORK=1`,
+`APP_VARIANT=preview`, and `MOBILE_VERSION_POLICY=fingerprint` there alongside
+the account IDs and Connect settings. The fork's default branch is `personal`
+so manual workflow runs and the monthly refresh can run. Sync upstream into
+`main`, then merge `main` into `personal`.
+
+Run release builds and updates through GitHub Actions. Its Linux runner keeps
+the native fingerprint consistent with EAS cloud builds.
+
+For a manual update, run this from the fork:
+
+```bash
+gh workflow run personal-mobile.yml --ref personal -f mode=update
+```
+
+For a full native build, use:
+
+```bash
+gh workflow run personal-mobile.yml --ref personal -f mode=build
+```
 
 ## EAS Builds
 

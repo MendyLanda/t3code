@@ -246,7 +246,9 @@ const config: ExpoConfig = {
   icon: variant.assets.appIcon,
   userInterfaceStyle: "automatic",
   updates: {
-    enabled: !isPersonalForkBuild && repoEnv.T3CODE_MOBILE_UPDATES_ENABLED !== "0",
+    enabled:
+      repoEnv.T3CODE_MOBILE_UPDATES_ENABLED !== "0" &&
+      (!isPersonalForkBuild || Boolean(expoProjectId)),
     url: expoProjectId ? `https://u.expo.dev/${expoProjectId}` : undefined,
     checkAutomatically: "ON_LOAD",
     fallbackToCacheTimeout: 0,

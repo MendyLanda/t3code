@@ -179,3 +179,16 @@ index 07706139379384dae27befef4e3e5ae09d04a0db..924fa0029243664e369ce08c81e504b6
    /**
     * Whether the activity is displayed in a context with reduced luminance.
     * @platform iOS 16+
+diff --git a/plugin/build/ios/withWidgetSourceFiles.js b/plugin/build/ios/withWidgetSourceFiles.js
+--- a/plugin/build/ios/withWidgetSourceFiles.js
++++ b/plugin/build/ios/withWidgetSourceFiles.js
+@@ -150,7 +150,8 @@ const withWidgetSourceFiles = (config, { widgets, targetName, onFilesGenerated, gro
+                 ]
+             };
+             _fs().writeFileSync(entitlementsPath, _plist().default.build(entitlementsContent));
+-            const infoPlistPath = createInfoPlist(groupIdentifier, targetDirectory, config.ios?.version ?? config.version ?? '1.0', config.ios?.buildNumber ?? '1', existingInfoPlist);
++            const bundleVersion = config.ios?.buildNumber ?? (existingInfoPlist ? _plist().default.parse(existingInfoPlist).CFBundleVersion : null) ?? '1';
++            const infoPlistPath = createInfoPlist(groupIdentifier, targetDirectory, config.ios?.version ?? config.version ?? '1.0', bundleVersion, existingInfoPlist);
+             const layoutRegistryConfigPath = createLayoutRegistryConfig(widgets, targetDirectory);
+             const indexSwiftPath = createIndexSwift(widgets, targetDirectory);
+             const widgetSwiftPaths = widgets.map((widget)=>createWidgetSwift(widget, targetDirectory));

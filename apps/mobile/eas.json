@@ -34,8 +34,12 @@
       "autoIncrement": true,
       "env": {
         "T3CODE_MOBILE_FORK": "1",
-        "MOBILE_VERSION_POLICY": "appVersion"
+        "MOBILE_VERSION_POLICY": "fingerprint"
       }
+    },
+    "personal:testflight": {
+      "extends": "personal",
+      "distribution": "store"
     },
     "preview:dev": {
       "corepack": true,
@@ -72,6 +76,13 @@
     }
   },
   "submit": {
+    "personal:testflight": {
+      "ios": {
+        "ascAppId": "6820554865",
+        "appleTeamId": "XGJZJY33WG",
+        "groups": ["Personal"]
+      }
+    },
     "v2-preview": {
       "extends": "production",
       "android": {

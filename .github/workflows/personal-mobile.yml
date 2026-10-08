@@ -1,0 +1,122 @@
+name: Personal iPhone updates
+
+on:
+  push:
+    branches: [personal]
+    paths:
+      - apps/mobile/**
+      - packages/client-runtime/**
+      - packages/contracts/**
+      - packages/shared/**
+      - assets/**
+      - scripts/**
+      - patches/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/personal-mobile.yml
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Auto selects an Expo update or a TestFlight build"
+        type: choice
+        default: auto
+        options: [auto, update, build]
+  schedule:
+    # Refresh TestFlight's 90-day testing period even when the fork is idle.
+    - cron: "0 5 1 * *"
+
+concurrency:
+  group: personal-mobile
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'MendyLanda/t3code' && github.ref == 'refs/heads/personal'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      T3CODE_MOBILE_FORK: "1"
+      T3CODE_EXPO_OWNER: landavc
+      T3CODE_EXPO_PROJECT_ID: f35da5c2-8940-44ec-856f-19d708d11680
+      T3CODE_APPLE_TEAM_ID: XGJZJY33WG
+      APP_VARIANT: preview
+      MOBILE_VERSION_POLICY: fingerprint
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+
+      - name: Install mobile dependencies and build tools
+        run: pnpm install --frozen-lockfile --filter @t3tools/mobile... --filter .
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: 24.12.0
+          token: ${{ secrets.PERSONAL_EXPO_TOKEN }}
+          packager: npm
+
+      - name: Verify the personal app configuration
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.PERSONAL_EXPO_TOKEN }}
+        run: |
+          eas config --platform ios --profile personal:testflight --json > "$RUNNER_TEMP/personal-config.json"
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import assert from "node:assert/strict";
+            const { appConfig: app, buildProfile } = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/personal-config.json", "utf8"));
+            assert.equal(app.owner, "landavc");
+            assert.equal(app.ios.bundleIdentifier, "com.mendylanda.t3code");
+            assert.equal(app.ios.appleTeamId, "XGJZJY33WG");
+            assert.equal(app.extra.eas.projectId, "f35da5c2-8940-44ec-856f-19d708d11680");
+            assert.equal(app.updates.url, "https://u.expo.dev/f35da5c2-8940-44ec-856f-19d708d11680");
+            assert.equal(app.updates.enabled, true);
+            assert.equal(app.runtimeVersion.policy, "fingerprint");
+            assert.equal(buildProfile.distribution, "store");
+            assert.equal(buildProfile.channel, "personal");
+          '
+
+      - name: Publish an update or start a TestFlight build
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.PERSONAL_EXPO_TOKEN }}
+          REQUESTED_MODE: ${{ github.event_name == 'schedule' && 'build' || inputs.mode || 'auto' }}
+        run: |
+          set -euo pipefail
+          eas fingerprint:generate --platform ios --environment preview --json --non-interactive > "$RUNNER_TEMP/personal-fingerprint-output.txt"
+          sed -n '/^{/,$p' "$RUNNER_TEMP/personal-fingerprint-output.txt" > "$RUNNER_TEMP/personal-fingerprint.json"
+          hash=$(jq -er '.hash | select(type == "string" and length > 0)' "$RUNNER_TEMP/personal-fingerprint.json")
+          jq -e 'any(.sources[]; (.id // "") | startswith("expoConfig"))' "$RUNNER_TEMP/personal-fingerprint.json" > /dev/null
+          matching=$(eas build:list --platform ios --channel personal --status finished --fingerprint-hash "$hash" --limit 1 --json --non-interactive | jq 'length')
+
+          if [[ "$REQUESTED_MODE" != "build" && "$matching" -gt 0 ]]; then
+            message="$(git log -1 --pretty=%s | head -c 120) ($(git rev-parse --short=9 HEAD))"
+            eas update --channel personal --environment preview --platform ios --message "$message" --non-interactive
+            echo "Published an Expo update for native fingerprint \`$hash\`." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [[ "$REQUESTED_MODE" == "update" ]]; then
+            echo "::error::No installed build matches this native code. Run mode=build first."
+            exit 1
+          fi
+
+          active=$(eas build:list --platform ios --build-profile personal:testflight --fingerprint-hash "$hash" --limit 10 --json --non-interactive | jq '[.[] | select(.status == "NEW" or .status == "IN_QUEUE" or .status == "IN_PROGRESS")] | length')
+          if [[ "$active" -gt 0 ]]; then
+            echo "A matching TestFlight build is already running." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          eas build --profile personal:testflight --platform ios --auto-submit --non-interactive --no-wait --freeze-credentials
+          echo "Started a private TestFlight build for native fingerprint \`$hash\`." >> "$GITHUB_STEP_SUMMARY"
