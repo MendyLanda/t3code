@@ -41,16 +41,31 @@ const IMAGE_SET_CONTENTS =
   ) + "\n";
 
 function withAssetFiles(config) {
+  const personalFork = config.extra?.personalForkBuild === true;
+  const imageName = personalFork ? "T3Mark.png" : SVG_NAME;
+  const imageSetContents = personalFork
+    ? JSON.stringify(
+        {
+          images: [{ idiom: "universal", filename: imageName }],
+          info: { author: "expo", version: 1 },
+          properties: { "template-rendering-intent": "original" },
+        },
+        null,
+        2,
+      ) + "\n"
+    : IMAGE_SET_CONTENTS;
   return withDangerousMod(config, [
     "ios",
     (cfg) => {
-      const source = path.join(cfg.modRequest.projectRoot, "assets", "widget", SVG_NAME);
+      const source = personalFork
+        ? path.join(cfg.modRequest.projectRoot, "../../assets/personal/widget-icon.png")
+        : path.join(cfg.modRequest.projectRoot, "assets", "widget", SVG_NAME);
       const catalogDir = path.join(cfg.modRequest.platformProjectRoot, TARGET_NAME, CATALOG_NAME);
       const imageSetDir = path.join(catalogDir, IMAGE_SET);
       fs.mkdirSync(imageSetDir, { recursive: true });
       fs.writeFileSync(path.join(catalogDir, "Contents.json"), CATALOG_CONTENTS);
-      fs.writeFileSync(path.join(imageSetDir, "Contents.json"), IMAGE_SET_CONTENTS);
-      fs.copyFileSync(source, path.join(imageSetDir, SVG_NAME));
+      fs.writeFileSync(path.join(imageSetDir, "Contents.json"), imageSetContents);
+      fs.copyFileSync(source, path.join(imageSetDir, imageName));
       return cfg;
     },
   ]);

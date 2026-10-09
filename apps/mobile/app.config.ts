@@ -114,6 +114,20 @@ function resolveAppVariant(value: string | undefined): AppVariant {
 }
 
 const variant = VARIANT_CONFIG[APP_VARIANT];
+const appName = isPersonalForkBuild ? "AHi" : variant.appName;
+const assets = isPersonalForkBuild
+  ? {
+      ...variant.assets,
+      appIcon: fromRepoRoot(BRAND_ASSET_PATHS.personalIconPng),
+      iosIcon: fromRepoRoot(BRAND_ASSET_PATHS.personalIconPng),
+      splashIcon: fromRepoRoot(BRAND_ASSET_PATHS.personalIconPng),
+      androidAdaptiveForeground: fromRepoRoot(BRAND_ASSET_PATHS.personalIconPng),
+      androidAdaptiveBackgroundColor: "#36A5F8",
+      androidAdaptiveBackgroundImage: undefined,
+      androidSplashIcon: fromRepoRoot(BRAND_ASSET_PATHS.personalIconPng),
+      androidMonochromeIcon: undefined,
+    }
+  : variant.assets;
 const iosBundleIdentifier = isIosPersonalTeamBuild
   ? personalTeamBundleIdentifier!
   : isPersonalForkBuild
@@ -231,7 +245,7 @@ const sharingPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
 // family names without waiting for runtime font loading.
 
 const config: ExpoConfig = {
-  name: isPersonalForkBuild ? "T3 Code Personal" : variant.appName,
+  name: appName,
   slug: isPersonalForkBuild ? "t3-code-personal" : "t3-code",
   platforms: ["ios", "android"],
   scheme: isPersonalForkBuild ? "t3code-personal" : variant.scheme,
@@ -243,7 +257,7 @@ const config: ExpoConfig = {
     policy: runtimeVersionPolicy,
   },
   orientation: "portrait",
-  icon: variant.assets.appIcon,
+  icon: assets.appIcon,
   userInterfaceStyle: "automatic",
   updates: {
     enabled:
@@ -254,7 +268,7 @@ const config: ExpoConfig = {
     fallbackToCacheTimeout: 0,
   },
   ios: {
-    icon: variant.assets.iosIcon,
+    icon: assets.iosIcon,
     supportsTablet: true,
     // Multitasking-capable iPad apps cannot rotate programmatically, so the
     // showcase capture build requires full screen (see infoPlist below).
@@ -277,9 +291,8 @@ const config: ExpoConfig = {
       NSAppTransportSecurity: {
         NSAllowsArbitraryLoads: true,
       },
-      NSLocalNetworkUsageDescription:
-        "Allow T3 Code to connect to T3 Code servers on your local network or tailnet.",
-      NSPhotoLibraryAddUsageDescription: "Allow T3 Code to save images to your photo library.",
+      NSLocalNetworkUsageDescription: `Allow ${appName} to connect to T3 Code servers on your local network or tailnet.`,
+      NSPhotoLibraryAddUsageDescription: `Allow ${appName} to save images to your photo library.`,
       // "Audio, AirPlay, and Picture in Picture": the browser screen's system
       // picture in picture needs it to start and to stay up outside the app.
       UIBackgroundModes: ["audio"],
@@ -302,18 +315,18 @@ const config: ExpoConfig = {
     },
   },
   android: {
-    icon: variant.assets.appIcon,
+    icon: assets.appIcon,
     package: isPersonalForkBuild ? "com.mendylanda.t3code" : variant.androidPackage,
     ...(repoEnv.T3CODE_ANDROID_GOOGLE_SERVICES_FILE
       ? { googleServicesFile: repoEnv.T3CODE_ANDROID_GOOGLE_SERVICES_FILE }
       : {}),
     adaptiveIcon: {
-      backgroundColor: variant.assets.androidAdaptiveBackgroundColor,
-      ...(variant.assets.androidAdaptiveBackgroundImage
-        ? { backgroundImage: variant.assets.androidAdaptiveBackgroundImage }
+      backgroundColor: assets.androidAdaptiveBackgroundColor,
+      ...(assets.androidAdaptiveBackgroundImage
+        ? { backgroundImage: assets.androidAdaptiveBackgroundImage }
         : {}),
-      foregroundImage: variant.assets.androidAdaptiveForeground,
-      monochromeImage: variant.assets.androidMonochromeIcon,
+      foregroundImage: assets.androidAdaptiveForeground,
+      monochromeImage: assets.androidMonochromeIcon,
     },
     // Opts into OnBackInvokedCallback-based back dispatch (Android 13+).
     // JS back handling survives it via react-native's Android 16 shim plus
@@ -323,7 +336,7 @@ const config: ExpoConfig = {
     blockedPermissions: ["android.permission.ACTIVITY_RECOGNITION"],
   },
   web: {
-    favicon: variant.assets.appIcon,
+    favicon: assets.appIcon,
   },
   plugins: [
     "expo-asset",
@@ -375,10 +388,10 @@ const config: ExpoConfig = {
         // the shortcut items set in src/features/shortcuts.
         androidIcons: {
           shortcut_icon: {
-            foregroundImage: variant.assets.androidAdaptiveForeground,
-            backgroundColor: variant.assets.androidAdaptiveBackgroundColor,
-            ...(variant.assets.androidAdaptiveBackgroundImage
-              ? { backgroundImage: variant.assets.androidAdaptiveBackgroundImage }
+            foregroundImage: assets.androidAdaptiveForeground,
+            backgroundColor: assets.androidAdaptiveBackgroundColor,
+            ...(assets.androidAdaptiveBackgroundImage
+              ? { backgroundImage: assets.androidAdaptiveBackgroundImage }
               : {}),
           },
         },
@@ -387,7 +400,7 @@ const config: ExpoConfig = {
     [
       "expo-audio",
       {
-        microphonePermission: "Allow T3 Code to use your microphone for voice input.",
+        microphonePermission: `Allow ${appName} to use your microphone for voice input.`,
         recordAudioAndroid: false,
         enableBackgroundPlayback: false,
         enableBackgroundRecording: false,
@@ -396,7 +409,7 @@ const config: ExpoConfig = {
     [
       "expo-camera",
       {
-        cameraPermission: "Allow T3 Code to access your camera so you can scan pairing QR codes.",
+        cameraPermission: `Allow ${appName} to access your camera so you can scan pairing QR codes.`,
         microphonePermission: false,
         barcodeScannerEnabled: true,
         recordAudioAndroid: false,
@@ -406,12 +419,12 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        image: variant.assets.splashIcon,
+        image: assets.splashIcon,
         resizeMode: "contain",
         backgroundColor: "#ffffff",
         imageWidth: 220,
         dark: {
-          image: variant.assets.splashIcon,
+          image: assets.splashIcon,
           backgroundColor: "#0a0a0a",
         },
         android: {
@@ -419,9 +432,9 @@ const config: ExpoConfig = {
           // its 288dp canvas, so the iOS export's corners get cut. A full-canvas image of
           // the composed adaptive layers puts the wordmark in the same frame the launcher
           // icon uses.
-          image: variant.assets.androidSplashIcon,
+          image: assets.androidSplashIcon,
           imageWidth: 288,
-          dark: { image: variant.assets.androidSplashIcon },
+          dark: { image: assets.androidSplashIcon },
         },
       },
     ],
@@ -474,6 +487,7 @@ const config: ExpoConfig = {
     ...(isIosPersonalTeamBuild ? ["./plugins/withoutIosPersonalTeamCapabilities.cjs"] : []),
   ],
   extra: {
+    personalForkBuild: isPersonalForkBuild,
     appVariant: APP_VARIANT,
     iosPersonalTeamBuild: isIosPersonalTeamBuild,
     relay: {

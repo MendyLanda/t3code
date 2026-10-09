@@ -1,4 +1,10 @@
 export const BRAND_ASSET_PATHS = {
+  personalIconPng: "assets/personal/icon.png",
+  personalMacIconPng: "assets/personal/icon-macos.png",
+  personalWindowsIconIco: "assets/personal/icon.ico",
+  personalWebFavicon16Png: "assets/personal/favicon-16x16.png",
+  personalWebFavicon32Png: "assets/personal/favicon-32x32.png",
+  personalWebAppleTouchIconPng: "assets/personal/apple-touch-icon.png",
   developmentIconComposerProject: "assets/dev/app-icon.icon",
   developmentIosIconPng: "assets/dev/blueprint-ios-1024.png",
   developmentUniversalIconPng: "assets/dev/blueprint-universal-1024.png",
@@ -57,32 +63,16 @@ const WEB_ICON_TARGET_FILENAMES = {
   appleTouchIconPng: "apple-touch-icon.png",
 } as const;
 
-const WEB_ICON_SOURCE_PATHS_BY_BRAND = {
-  development: {
-    faviconIco: BRAND_ASSET_PATHS.developmentWebFaviconIco,
-    favicon16Png: BRAND_ASSET_PATHS.developmentWebFavicon16Png,
-    favicon32Png: BRAND_ASSET_PATHS.developmentWebFavicon32Png,
-    appleTouchIconPng: BRAND_ASSET_PATHS.developmentWebAppleTouchIconPng,
-  },
-  nightly: {
-    faviconIco: BRAND_ASSET_PATHS.nightlyWebFaviconIco,
-    favicon16Png: BRAND_ASSET_PATHS.nightlyWebFavicon16Png,
-    favicon32Png: BRAND_ASSET_PATHS.nightlyWebFavicon32Png,
-    appleTouchIconPng: BRAND_ASSET_PATHS.nightlyWebAppleTouchIconPng,
-  },
-  production: {
-    faviconIco: BRAND_ASSET_PATHS.productionWebFaviconIco,
-    favicon16Png: BRAND_ASSET_PATHS.productionWebFavicon16Png,
-    favicon32Png: BRAND_ASSET_PATHS.productionWebFavicon32Png,
-    appleTouchIconPng: BRAND_ASSET_PATHS.productionWebAppleTouchIconPng,
-  },
-} as const satisfies Record<WebAssetBrand, Record<keyof typeof WEB_ICON_TARGET_FILENAMES, string>>;
-
 export function resolveWebIconOverrides(
-  brand: WebAssetBrand,
+  _brand: WebAssetBrand,
   targetDirectory: string,
 ): ReadonlyArray<IconOverride> {
-  const sourcePaths = WEB_ICON_SOURCE_PATHS_BY_BRAND[brand];
+  const sourcePaths = {
+    faviconIco: BRAND_ASSET_PATHS.personalWindowsIconIco,
+    favicon16Png: BRAND_ASSET_PATHS.personalWebFavicon16Png,
+    favicon32Png: BRAND_ASSET_PATHS.personalWebFavicon32Png,
+    appleTouchIconPng: BRAND_ASSET_PATHS.personalWebAppleTouchIconPng,
+  };
   return [
     {
       sourceRelativePath: sourcePaths.faviconIco,

@@ -12,6 +12,7 @@ import { Alert, AppState, Linking, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText as Text } from "../../components/AppText";
+import { APP_BASE_NAME } from "../../components/brandAssets";
 import {
   isAtomCommandInterrupted,
   reportAtomCommandResult,
@@ -338,7 +339,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
 
       Alert.alert(
         "Disable notifications",
-        "Open system Settings to disable notifications for T3 Code.",
+        `Open system Settings to disable notifications for ${APP_BASE_NAME}.`,
         [
           { text: "Cancel", style: "cancel" },
           { text: "Open Settings", onPress: () => void Linking.openSettings() },
@@ -492,7 +493,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
                 void openAndroidLiveUpdateSettings().catch(() => {
                   Alert.alert(
                     "Couldn't open Settings",
-                    "Open Android Settings, select T3 Code, then enable Live Updates in Notifications.",
+                    `Open Android Settings, select ${APP_BASE_NAME}, then enable Live Updates in Notifications.`,
                   );
                 });
               }}

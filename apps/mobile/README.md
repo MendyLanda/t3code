@@ -121,7 +121,7 @@ The native lint task runs SwiftLint for Swift plus ktlint and detekt for Kotlin.
 
 ## Personal iPhone builds
 
-This fork has a `personal` profile for an ad hoc build named `T3 Code Personal`,
+This fork has a `personal` profile for an ad hoc build named `AHi`,
 with bundle ID `com.mendylanda.t3code`. It runs without Metro and uses your Apple
 team and Expo project. It receives compatible Expo updates from the `personal`
 channel. Builds made before updates were enabled need one manual replacement.

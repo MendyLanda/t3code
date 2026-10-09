@@ -6,7 +6,8 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
 import { cn } from "../../lib/utils";
 import { usePullRequestsSupported } from "../../state/environments";
-import { T3Wordmark } from "../T3Wordmark";
+import appIcon from "../../../../../assets/personal/icon.png";
+import { APP_BASE_NAME } from "../../branding";
 import {
   resolveEnvironmentIdentificationPillLabel,
   resolveSidebarStageBackdropVariant,
@@ -125,15 +126,15 @@ function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
 function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
   return (
     // Center the visible capitals, without the font's ascender/descender space.
-    <span className="inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight">
-      <T3Wordmark aria-label="T3" className="h-[1cap] w-auto shrink-0" />
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-sm font-medium tracking-tight">
+      <img src={appIcon} alt="" className="size-5 shrink-0 rounded-md" />
       <span
         className={cn(
           "truncate [text-box:trim-both_cap_alphabetic]",
           onBackdrop ? "text-white/70" : "text-muted-foreground",
         )}
       >
-        Code
+        {APP_BASE_NAME}
       </span>
     </span>
   );
