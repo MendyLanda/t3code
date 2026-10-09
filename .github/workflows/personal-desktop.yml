@@ -67,10 +67,16 @@ jobs:
       T3CODE_DESKTOP_DEV: "0"
       NODE_OPTIONS: --max-old-space-size=8192
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
+      # Match the upstream release checkout: vendored .repos gitlinks break auth cleanup.
+      - name: Checkout
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git -c checkout.workers=0 checkout --detach FETCH_HEAD
 
       - uses: actions/setup-node@v6
         with:
