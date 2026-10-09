@@ -7,6 +7,7 @@ on:
       - apps/mobile/**
       - packages/client-runtime/**
       - packages/contracts/**
+      - packages/provider-*/**
       - packages/shared/**
       - assets/**
       - scripts/**
