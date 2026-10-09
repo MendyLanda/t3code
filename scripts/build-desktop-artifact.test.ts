@@ -328,6 +328,53 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }),
   );
 
+  it.effect(
+    "uses the personal feed for stable and nightly releases while previews stay isolated",
+    () =>
+      Effect.gen(function* () {
+        for (const version of ["0.1.1", "0.1.1-nightly.20261009.1"]) {
+          const config = yield* createBuildConfig(
+            "mac",
+            "dmg",
+            version,
+            false,
+            false,
+            undefined,
+            undefined,
+          );
+          assert.deepStrictEqual(config.publish, [
+            {
+              provider: "generic",
+              url: "https://github.com/MendyLanda/t3code/releases/latest/download",
+              useMultipleRangeRequest: false,
+            },
+          ]);
+        }
+        const preview = yield* createBuildConfig(
+          "mac",
+          "dmg",
+          "0.0.45-preview.20261009.3",
+          false,
+          false,
+          undefined,
+          undefined,
+        );
+        assert.notProperty(preview, "publish");
+      }).pipe(
+        Effect.provide(
+          ConfigProvider.layer(
+            ConfigProvider.fromEnv({
+              env: {
+                T3CODE_DESKTOP_UPDATE_URL:
+                  " https://github.com/MendyLanda/t3code/releases/latest/download ",
+                GITHUB_REPOSITORY: "pingdotgg/t3code",
+              },
+            }),
+          ),
+        ),
+      ),
+  );
+
   it.effect("omits update feeds for pull request preview builds", () =>
     Effect.gen(function* () {
       const preview = yield* createBuildConfig(

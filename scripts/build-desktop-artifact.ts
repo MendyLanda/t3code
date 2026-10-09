@@ -2569,9 +2569,14 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
   updateChannel: "latest" | "nightly",
 ) {
   const env = yield* Config.all({
+    updateUrl: Config.String("T3CODE_DESKTOP_UPDATE_URL").pipe(Config.option),
     updateRepository: Config.String("T3CODE_DESKTOP_UPDATE_REPOSITORY").pipe(Config.option),
     githubRepository: Config.String("GITHUB_REPOSITORY").pipe(Config.option),
   });
+  const updateUrl = Option.getOrUndefined(env.updateUrl)?.trim();
+  if (updateUrl) {
+    return { provider: "generic", url: updateUrl, useMultipleRangeRequest: false };
+  }
   const rawRepo = (
     Option.getOrUndefined(env.updateRepository)?.trim() ||
     Option.getOrUndefined(env.githubRepository)?.trim() ||
@@ -3646,8 +3651,12 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   const stageProdResourcesDir = path.join(stageAppDir, "apps/desktop/prod-resources");
   yield* fs.copy(stageResourcesDir, stageProdResourcesDir);
 
+  // Forks can use browser sign-in without the upstream Clerk passkey provisioning profile.
+  const macPasskeys = yield* Config.Boolean("T3CODE_DESKTOP_MAC_PASSKEYS").pipe(
+    Config.withDefault(true),
+  );
   const configuredMacPasskeySigning =
-    options.platform === "mac" && options.signed
+    options.platform === "mac" && options.signed && macPasskeys
       ? yield* Effect.try({
           try: () => resolveMacPasskeySigningConfiguration(loadRepoEnv({ repoRoot })),
           catch: MacPasskeySigningConfigurationResolutionError.fromCause,

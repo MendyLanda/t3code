@@ -1,0 +1,178 @@
+name: Personal Mac updates
+
+on:
+  push:
+    branches: [personal]
+    paths:
+      - apps/desktop/**
+      - apps/server/**
+      - apps/web/**
+      - packages/**
+      - assets/**
+      - native/**
+      - scripts/**
+      - patches/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/personal-desktop.yml
+  workflow_dispatch:
+
+concurrency:
+  group: personal-mac-updates
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  credentials:
+    if: github.repository == 'MendyLanda/t3code' && github.ref == 'refs/heads/personal'
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Check Mac signing credentials
+        id: check
+        env:
+          CERTIFICATE: ${{ secrets.PERSONAL_DESKTOP_CSC_LINK }}
+          CERTIFICATE_PASSWORD: ${{ secrets.PERSONAL_DESKTOP_CSC_PASSWORD }}
+          NOTARY_KEY: ${{ secrets.PERSONAL_DESKTOP_APPLE_API_KEY }}
+          NOTARY_KEY_ID: ${{ secrets.PERSONAL_DESKTOP_APPLE_API_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.PERSONAL_DESKTOP_APPLE_API_ISSUER }}
+        run: |
+          if [[ -n "$CERTIFICATE" && -n "$CERTIFICATE_PASSWORD" && -n "$NOTARY_KEY" && -n "$NOTARY_KEY_ID" && -n "$NOTARY_ISSUER" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Mac releases await the personal Developer ID certificate and notarization credentials." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  publish:
+    needs: credentials
+    if: needs.credentials.outputs.ready == 'true'
+    runs-on: macos-15
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      T3CODE_APPLE_TEAM_ID: XGJZJY33WG
+      T3CODE_DESKTOP_MAC_PASSKEYS: "false"
+      T3CODE_DESKTOP_UPDATE_URL: https://github.com/MendyLanda/t3code/releases/latest/download
+      T3CODE_DESKTOP_UPDATE_REPOSITORY: MendyLanda/t3code
+      T3CODE_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsudDMuY29kZXMk
+      T3CODE_CLERK_JWT_TEMPLATE: t3-relay
+      T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: hzxSgY2cH10sDU2r
+      T3CODE_RELAY_URL: https://relay.t3.codes
+      T3CODE_DESKTOP_DEV: "0"
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build signed and notarized AHi
+        env:
+          CSC_LINK: ${{ secrets.PERSONAL_DESKTOP_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.PERSONAL_DESKTOP_CSC_PASSWORD }}
+          NOTARY_KEY: ${{ secrets.PERSONAL_DESKTOP_APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.PERSONAL_DESKTOP_APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.PERSONAL_DESKTOP_APPLE_API_ISSUER }}
+        run: |
+          unset ELECTRON_RUN_AS_NODE
+          umask 077
+          export APPLE_API_KEY="$RUNNER_TEMP/ahi-notary.p8"
+          printf '%s' "$NOTARY_KEY" > "$APPLE_API_KEY"
+          node scripts/build-desktop-artifact.ts \
+            --platform mac --target dmg --arch arm64 --signed \
+            --build-version "0.1.${GITHUB_RUN_NUMBER}" --output-dir release/personal
+
+      - name: Remove notarization key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/ahi-notary.p8"
+
+      - name: Verify the packaged app and update feed
+        env:
+          VERSION: 0.1.${{ github.run_number }}
+        run: |
+          hdiutil verify "release/personal/AHi-${VERSION}-arm64.dmg"
+          ditto -x -k "release/personal/AHi-${VERSION}-arm64.zip" "$RUNNER_TEMP/ahi-verify"
+          export VERIFY_APP="$RUNNER_TEMP/ahi-verify/AHi.app"
+          codesign --verify --deep --strict "$VERIFY_APP"
+          xcrun stapler validate "$VERIFY_APP"
+          python3 <<'PY'
+          import os, plistlib, subprocess
+          from pathlib import Path
+          app = Path(os.environ['VERIFY_APP'])
+          info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
+          assert info['CFBundleDisplayName'] == 'AHi'
+          assert info['CFBundleIdentifier'] == 'com.t3tools.t3code'
+          assert info['CFBundleShortVersionString'] == os.environ['VERSION']
+          signature = subprocess.run(['codesign', '-dv', '--verbose=4', str(app)], capture_output=True, text=True, check=True).stderr
+          assert 'TeamIdentifier=XGJZJY33WG' in signature
+          assert 'Authority=Developer ID Application:' in signature
+          assert (app / 'Contents/Resources/icon.icns').is_file()
+          assert (app / 'Contents/Resources/app-update.yml').is_file()
+          PY
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import assert from 'node:assert/strict';
+          import { createRequire } from 'node:module';
+          const YAML = createRequire(path.resolve('apps/server/package.json'))('yaml');
+          const feed = YAML.parse(fs.readFileSync(path.join(process.env.VERIFY_APP, 'Contents/Resources/app-update.yml'), 'utf8'));
+          assert.equal(feed.provider, 'generic');
+          assert.equal(feed.url, 'https://github.com/MendyLanda/t3code/releases/latest/download');
+          const metadata = YAML.parse(fs.readFileSync('release/personal/latest-mac.yml', 'utf8'));
+          assert.equal(metadata.version, process.env.VERSION);
+          assert(metadata.files.some(file => file.url.endsWith('.zip')));
+          for (const file of metadata.files) {
+            assert.equal(path.basename(file.url), file.url);
+            const bytes = fs.readFileSync(path.join('release/personal', file.url));
+            assert.equal(crypto.createHash('sha512').update(bytes).digest('base64'), file.sha512);
+          }
+          // Existing installs may retain the Nightly setting. Both settings use this fork's releases.
+          fs.copyFileSync('release/personal/latest-mac.yml', 'release/personal/nightly-mac.yml');
+          JS
+
+      - name: Publish the desktop update
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: 0.1.${{ github.run_number }}
+        run: |
+          tag="v${VERSION}"
+          draft=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || true)
+          if [[ "$draft" == "false" ]]; then
+            echo "AHi ${VERSION} is already published." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          cat > "$RUNNER_TEMP/ahi-release-notes.md" <<'NOTES'
+          Personal AHi build with the latest changes from the personal branch.
+
+          Install the DMG once. Later releases appear in AHi's desktop update controls.
+          NOTES
+          assets=(release/personal/AHi-*.dmg release/personal/AHi-*.zip release/personal/AHi-*.blockmap release/personal/latest-mac.yml release/personal/nightly-mac.yml)
+          if [[ "$draft" == "true" ]]; then
+            gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "${assets[@]}"
+          else
+            gh release create "$tag" \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft \
+              --title "AHi ${VERSION}" --notes-file "$RUNNER_TEMP/ahi-release-notes.md" \
+              "${assets[@]}"
+          fi
+          # Expose the feed only after all installers and manifests have uploaded.
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          echo "AHi ${VERSION}: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}" >> "$GITHUB_STEP_SUMMARY"

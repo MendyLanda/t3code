@@ -4,6 +4,26 @@
 
 This document covers the unified release workflow for stable and nightly desktop releases.
 
+## Personal fork
+
+On `MendyLanda/t3code`, push changes to `personal`. The
+[Personal Mac updates workflow](../../.github/workflows/personal-desktop.yml) builds signed,
+notarized Apple Silicon releases of AHi. Install the DMG from the fork's
+[latest release](https://github.com/MendyLanda/t3code/releases/latest) once on each Mac, then use
+the app's **Download update** and **Restart and update** controls. The latest and nightly settings
+both receive this fork's releases.
+
+The workflow skips publication until these repository secrets are set:
+`PERSONAL_DESKTOP_CSC_LINK` (base64 Developer ID Application P12),
+`PERSONAL_DESKTOP_CSC_PASSWORD`, `PERSONAL_DESKTOP_APPLE_API_KEY` (notarization P8),
+`PERSONAL_DESKTOP_APPLE_API_KEY_ID`, and `PERSONAL_DESKTOP_APPLE_API_ISSUER`.
+Use certificates and API keys for Apple team `XGJZJY33WG`. This build uses browser sign-in;
+the upstream team's native passkey provisioning profile does not apply to the fork.
+
+The [Personal iPhone updates workflow](../../.github/workflows/personal-mobile.yml) publishes
+Expo updates when the native runtime matches an existing build. Native changes create a new
+TestFlight build. Keep the upstream release workflows disabled in this fork.
+
 ## What the workflow does
 
 - Workflow: `.github/workflows/release.yml`
