@@ -2710,6 +2710,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       target: target === "dmg" ? [target, "zip"] : [target],
       icon: "icon.icns",
       category: "public.app-category.developer-tools",
+      // Local Apple Silicon builds still need a valid bundle signature.
+      ...(!signed ? { identity: "-" } : {}),
       extendInfo: {
         NSScreenCaptureUsageDescription:
           "AHi captures the active window when you use the window capture shortcut.",
