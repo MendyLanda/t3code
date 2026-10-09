@@ -101,7 +101,7 @@ jobs:
           umask 077
           export APPLE_API_KEY="$RUNNER_TEMP/ahi-notary.p8"
           printf '%s' "$NOTARY_KEY" > "$APPLE_API_KEY"
-          node scripts/build-desktop-artifact.ts \
+          pnpm exec node scripts/build-desktop-artifact.ts \
             --platform mac --target dmg --arch arm64 --signed \
             --build-version "0.1.${GITHUB_RUN_NUMBER}" --output-dir release/personal
 
