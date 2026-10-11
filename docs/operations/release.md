@@ -13,6 +13,19 @@ notarized Apple Silicon releases of AHi. Install the DMG from the fork's
 the app's **Download update** and **Restart and update** controls. The latest and nightly settings
 both receive this fork's releases.
 
+The same workflow builds and tests the Linux ARM64 server used on `oldy`. Each release
+holds its CLI archive, `SHA256SUMS`, and the `@mendylanda/ahi` npm tarballs. Mac and server
+builds share one version. The server's updater reads this fork's releases.
+
+For the first npm release, publish `ahi-linux-arm64.tgz` before `ahi.tgz`, with
+`npm publish <tarball> --access public`. Configure both packages to trust
+`MendyLanda/t3code` and `personal-desktop.yml` through
+[npm trusted publishing](https://docs.npmjs.com/trusted-publishers/), then set the repository
+variable `PERSONAL_SERVER_NPM_READY` to `true`. Later pushes publish npm packages without
+an npm token. Run `npx @mendylanda/ahi@latest` on Linux ARM64, or use this fork's installer
+when setting up a pinned service. Keep the existing server home and service settings when
+switching an installed server.
+
 The workflow skips publication until these repository secrets are set:
 `PERSONAL_DESKTOP_CSC_LINK` (base64 Developer ID Application P12),
 `PERSONAL_DESKTOP_CSC_PASSWORD`, `PERSONAL_DESKTOP_APPLE_API_KEY` (notarization P8),

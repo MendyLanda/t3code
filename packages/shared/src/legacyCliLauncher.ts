@@ -10,14 +10,14 @@
  * Remove it once no supported release predates the executable (after the
  * first stable release that ships it).
  */
-export function legacyCliLauncherScript(): string {
+export function legacyCliLauncherScript(platformPackagePrefix = "@t3code/t3-"): string {
   return `import { spawn } from "node:child_process";
 import { constants } from "node:os";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const executableName = process.platform === "win32" ? "t3.exe" : "t3";
-const executable = join(dirname(require.resolve("@t3code/t3-" + process.platform + "-" + process.arch + "/package.json")), executableName);
+const executable = join(dirname(require.resolve(${JSON.stringify(platformPackagePrefix)} + process.platform + "-" + process.arch + "/package.json")), executableName);
 const ipc = process.send !== undefined;
 const child = spawn(executable, process.argv.slice(2), {
   stdio: ipc ? ["inherit", "inherit", "inherit", "ipc"] : "inherit",

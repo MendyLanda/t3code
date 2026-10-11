@@ -48,8 +48,82 @@ jobs:
             echo "Mac releases await the personal Developer ID certificate and notarization credentials." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  publish:
+  server:
     needs: credentials
+    if: needs.credentials.outputs.ready == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      T3CODE_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsudDMuY29kZXMk
+      T3CODE_CLERK_JWT_TEMPLATE: t3-relay
+      T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: hzxSgY2cH10sDU2r
+      T3CODE_RELAY_URL: https://relay.t3.codes
+      NODE_OPTIONS: --max-old-space-size=8192
+      VERSION: 0.1.${{ github.run_number }}
+    steps:
+      - name: Checkout
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git -c checkout.workers=0 checkout --detach FETCH_HEAD
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter t3... --filter @t3tools/scripts... --filter .
+
+      - name: Set the shared release version
+        run: pnpm exec node scripts/update-release-package-versions.ts "$VERSION"
+
+      - name: Build the server and web client
+        run: pnpm exec vp run --filter t3 build
+
+      - name: Build the server executable
+        env:
+          VP_NODE_VERSION: "26.8.2"
+        run: pnpm exec node apps/server/scripts/cli.ts build-exe --verbose
+
+      - name: Build the resource monitor
+        run: |
+          cargo build --locked --release --manifest-path native/resource-monitor/Cargo.toml --target aarch64-unknown-linux-gnu
+          mkdir -p "$RUNNER_TEMP/cli-resource-monitor/linux-arm64"
+          cp native/resource-monitor/target/aarch64-unknown-linux-gnu/release/t3-resource-monitor "$RUNNER_TEMP/cli-resource-monitor/linux-arm64/"
+
+      - name: Package and test the Linux ARM64 server
+        run: |
+          pnpm exec node scripts/build-cli-archive.ts \
+            --platform linux --arch arm64 --version "$VERSION" \
+            --resource-monitor-dir "$RUNNER_TEMP/cli-resource-monitor" --output-dir release-cli
+          pnpm exec node scripts/smoke-cli-archive.ts \
+            --archive "release-cli/t3-${VERSION}-linux-arm64.tar.gz" --expect-version "$VERSION"
+          pnpm exec node scripts/build-npm-platform-packages.ts \
+            --archives-dir release-cli --version "$VERSION" --output-dir npm-packages --allow-missing
+          npm install --prefix "$RUNNER_TEMP/ahi-npm-smoke" --ignore-scripts --no-audit --no-fund \
+            "$PWD/npm-packages/@mendylanda/ahi-linux-arm64.tgz" "$PWD/npm-packages/@mendylanda/ahi.tgz"
+          npm install --prefix "$RUNNER_TEMP/ahi-npm-smoke" --ignore-scripts --no-audit --no-fund
+          "$RUNNER_TEMP/ahi-npm-smoke/node_modules/.bin/ahi" --version | grep -F "$VERSION"
+          sha256sum "release-cli/t3-${VERSION}-linux-arm64.tar.gz" npm-packages/@mendylanda/*.tgz | sed 's|  .*/|  |' > release-cli/SHA256SUMS
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ahi-server
+          path: |
+            release-cli/*
+            npm-packages/@mendylanda/*.tgz
+          if-no-files-found: error
+
+  publish:
+    needs: [credentials, server]
     if: needs.credentials.outputs.ready == 'true'
     runs-on: macos-15
     timeout-minutes: 90
@@ -88,6 +162,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Set the shared release version
+        run: pnpm exec node scripts/update-release-package-versions.ts "0.1.${GITHUB_RUN_NUMBER}"
 
       - name: Build signed and notarized AHi
         env:
@@ -154,7 +231,12 @@ jobs:
           fs.copyFileSync('release/personal/latest-mac.yml', 'release/personal/nightly-mac.yml');
           JS
 
-      - name: Publish the desktop update
+      - uses: actions/download-artifact@v8
+        with:
+          name: ahi-server
+          path: release/personal/server
+
+      - name: Publish the Mac and server update
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: 0.1.${{ github.run_number }}
@@ -169,8 +251,10 @@ jobs:
           Personal AHi build with the latest changes from the personal branch.
 
           Install the DMG once. Later releases appear in AHi's desktop update controls.
+
+          The Linux ARM64 server and npm packages share this version. Run `npx @mendylanda/ahi@latest` after the first npm publication.
           NOTES
-          assets=(release/personal/AHi-*.dmg release/personal/AHi-*.zip release/personal/AHi-*.blockmap release/personal/latest-mac.yml release/personal/nightly-mac.yml)
+          assets=(release/personal/AHi-*.dmg release/personal/AHi-*.zip release/personal/AHi-*.blockmap release/personal/latest-mac.yml release/personal/nightly-mac.yml release/personal/server/release-cli/* release/personal/server/npm-packages/@mendylanda/*.tgz)
           if [[ "$draft" == "true" ]]; then
             gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "${assets[@]}"
           else
@@ -182,3 +266,45 @@ jobs:
           # Expose the feed only after all installers and manifests have uploaded.
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
           echo "AHi ${VERSION}: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}" >> "$GITHUB_STEP_SUMMARY"
+
+  npm:
+    needs: publish
+    if: vars.PERSONAL_SERVER_NPM_READY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION: 0.1.${{ github.run_number }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.1
+
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.15.0
+
+      - name: Download and verify the published server packages
+        run: |
+          gh release download "v${VERSION}" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'ahi*.tgz' --pattern SHA256SUMS
+          grep -E '  ahi(-linux-arm64)?\.tgz$' SHA256SUMS | sha256sum --check --strict
+
+      - name: Publish the platform, then the launcher
+        run: |
+          for package in ahi-linux-arm64 ahi; do
+            if npm view "@mendylanda/${package}@${VERSION}" dist.integrity --json --registry=https://registry.npmjs.org > existing-integrity.json 2>/dev/null; then
+              # A retry may follow a successful platform upload. Check its bytes before skipping it.
+              node --input-type=module - "$package" <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import assert from 'node:assert/strict';
+          const integrity = 'sha512-' + crypto.createHash('sha512').update(fs.readFileSync(process.argv[2] + '.tgz')).digest('base64');
+          assert.equal(JSON.parse(fs.readFileSync('existing-integrity.json', 'utf8')), integrity);
+          JS
+            else
+              npm publish "${package}.tgz" --access public --tag latest --registry=https://registry.npmjs.org
+            fi
+          done

@@ -14,14 +14,14 @@ const hostPlatform = NodeOS.platform();
 const hostArch = NodeOS.arch();
 
 // The fixture executable uses a POSIX shebang. The wrapper itself also runs on Windows.
-it.skipIf(hostPlatform === "win32")(
-  "keeps service IPC, arguments, and termination connected",
-  async () => {
+it.skipIf(hostPlatform === "win32").for(["@t3code/t3-", "@mendylanda/ahi-"])(
+  "keeps service IPC, arguments, and termination connected for %s",
+  async (packagePrefix) => {
     const root = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-legacy-launcher-"));
     const entry = NodePath.join(root, "node_modules/t3/dist/bin.mjs");
     const executable = NodePath.join(
       root,
-      `node_modules/@t3code/t3-${hostPlatform}-${hostArch}/t3`,
+      `node_modules/${packagePrefix}${hostPlatform}-${hostArch}/t3`,
     );
     await NodeFSP.mkdir(NodePath.dirname(entry), { recursive: true });
     await NodeFSP.mkdir(NodePath.dirname(executable), { recursive: true });
@@ -29,7 +29,7 @@ it.skipIf(hostPlatform === "win32")(
       NodePath.join(NodePath.dirname(executable), "package.json"),
       '{"type":"commonjs"}',
     );
-    await NodeFSP.writeFile(entry, legacyCliLauncherScript());
+    await NodeFSP.writeFile(entry, legacyCliLauncherScript(packagePrefix));
     await NodeFSP.writeFile(
       executable,
       `#!${process.execPath}
