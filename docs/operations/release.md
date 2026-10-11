@@ -37,6 +37,16 @@ The [Personal iPhone updates workflow](../../.github/workflows/personal-mobile.y
 Expo updates when the native runtime matches an existing build. Native changes create a new
 TestFlight build. Keep the upstream release workflows disabled in this fork.
 
+The [Personal upstream sync workflow](../../.github/workflows/personal-upstream.yml) checks
+published stable and nightly releases every 30 minutes and calls the sync agent's webhook on
+`oldy`. It skips previews, commits already in `personal`, active personal builds, and releases
+already sent to the agent. Keep its URL in `PERSONAL_UPSTREAM_WEBHOOK_URL`, never in source.
+The agent merges the released commit in its own checkout, keeps personal changes, runs focused
+checks, and pushes `personal` only when they pass. A conflict that needs a choice stops the sync.
+To retry that release, run the workflow manually with `force` enabled. Pause the scheduled task
+in the `AHi upstream sync` project on `oldy` to stop the agent, or disable this workflow to stop
+release checks. Publishing an update does not restart the installed server on `oldy`.
+
 ## What the workflow does
 
 - Workflow: `.github/workflows/release.yml`

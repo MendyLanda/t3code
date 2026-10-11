@@ -1,0 +1,54 @@
+name: Personal upstream sync
+
+on:
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Retry the latest upstream release after a stopped sync
+        type: boolean
+        default: false
+
+concurrency:
+  group: personal-upstream-detection
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  notify:
+    if: github.repository == 'MendyLanda/t3code' && github.ref == 'refs/heads/personal'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.1
+
+      - name: Test release detection
+        run: node --test .github/scripts/personal-upstream-release.test.mjs
+
+      - name: Notify the oldy sync agent
+        id: notify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PERSONAL_UPSTREAM_WEBHOOK_URL: ${{ secrets.PERSONAL_UPSTREAM_WEBHOOK_URL }}
+          FORCE_DELIVERY: ${{ inputs.force || false }}
+        run: node .github/scripts/personal-upstream-release.mjs
+
+      - name: Record the accepted delivery
+        if: steps.notify.outputs.delivered == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.notify.outputs.receipt_name }}
+          path: upstream-delivery.json
+          if-no-files-found: error
+          retention-days: 90
