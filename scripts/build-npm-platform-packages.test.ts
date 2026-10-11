@@ -45,7 +45,7 @@ const run = Effect.fn("test.run")(function* (
 });
 
 /** A tar.gz laid out like build-cli-archive.ts writes, with a stub `t3` that echoes its args. */
-const makeFakeArchives = Effect.fn("test.makeFakeArchives")(function* () {
+const makeFakeArchives = Effect.fn("test.makeFakeArchives")(function* (foreignNative = false) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-npm-packages-test-" });
@@ -71,6 +71,20 @@ const makeFakeArchives = Effect.fn("test.makeFakeArchives")(function* () {
       path.join(contentDir, "node_modules/@ff-labs/fff-node/package.json"),
       '{ "name": "@ff-labs/fff-node", "version": "0.9.4" }\n',
     );
+    if (foreignNative) {
+      const foreignDir = path.join(contentDir, "node_modules/@ff-labs/fff-bin-linux-arm64-musl");
+      yield* fs.makeDirectory(foreignDir, { recursive: true });
+      yield* fs.writeFileString(
+        path.join(foreignDir, "package.json"),
+        JSON.stringify({
+          name: "@ff-labs/fff-bin-linux-arm64-musl",
+          version: "0.9.4",
+          os: ["linux"],
+          cpu: ["arm64"],
+          libc: ["musl"],
+        }),
+      );
+    }
     yield* fs.writeFileString(path.join(contentDir, "client/index.html"), "<html></html>\n");
     yield* fs.writeFileString(
       path.join(contentDir, "t3"),
@@ -87,6 +101,54 @@ const makeFakeArchives = Effect.fn("test.makeFakeArchives")(function* () {
 });
 
 it.layer(NodeServices.layer)("build-npm-platform-packages", (it) => {
+  it.effect("keeps the executable and bundled modules working after npm reinstalls", () =>
+    Effect.gen(function* () {
+      const platform = yield* HostProcess.Platform;
+      const arch = yield* HostProcess.Architecture;
+      const hostKey = KEYS.find((key) => key === `${platform}-${arch}`);
+      if (!hostKey) return;
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const fixture = yield* makeFakeArchives(true);
+      yield* buildNpmPlatformPackages({ ...fixture, version: VERSION, allowMissing: true });
+      const prefix = path.join(fixture.root, "installed");
+      const env = {
+        ...process.env,
+        npm_config_cache: path.join(fixture.root, "npm-cache"),
+        npm_config_userconfig: path.join(fixture.root, "empty-npmrc"),
+      } as Record<string, string>;
+      const options = { cwd: fixture.root, env };
+      const args = ["install", "--prefix", prefix, "--ignore-scripts", "--no-audit", "--no-fund"];
+      const install = yield* run(
+        "npm",
+        [
+          ...args,
+          path.join(fixture.outputDir, `@mendylanda/ahi-${hostKey}.tgz`),
+          path.join(fixture.outputDir, "@mendylanda/ahi.tgz"),
+        ],
+        options,
+      );
+      assert.equal(install.exitCode, 0, install.stderr);
+      const reinstall = yield* run("npm", args, options);
+      assert.equal(reinstall.exitCode, 0, reinstall.stderr);
+      const launched = yield* run(
+        process.execPath,
+        [path.join(prefix, "node_modules/@mendylanda/ahi/bin/t3.js"), "--version"],
+        options,
+      );
+      assert.equal(launched.stdout.trim(), `stub ${hostKey} --version`);
+      assert.equal(launched.exitCode, 7);
+      assert.isTrue(
+        yield* fs.exists(
+          path.join(
+            prefix,
+            `node_modules/@mendylanda/ahi-${hostKey}/node_modules/node-pty/package.json`,
+          ),
+        ),
+      );
+    }),
+  );
+
   it.effect("refuses a partial release unless --allow-missing is passed", () =>
     Effect.gen(function* () {
       const fixture = yield* makeFakeArchives();

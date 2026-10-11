@@ -103,9 +103,10 @@ export function npmPlatformPackageManifest(
   platformKey: CliArchivePlatformKey,
   version: string,
   bundled: Readonly<Record<string, string>>,
+  optional: Readonly<Record<string, string>> = {},
 ) {
   const [os, cpu] = platformKey.split("-") as [string, string];
-  const bundleDependencies = Object.keys(bundled).sort();
+  const bundleDependencies = Object.keys({ ...bundled, ...optional }).sort();
   return {
     name: npmPlatformPackageName(platformKey),
     version,
@@ -116,12 +117,20 @@ export function npmPlatformPackageManifest(
     cpu: [cpu],
     files: ["t3", "t3.exe", "client", "resource-monitor", "node_modules"],
     preferUnplugged: true,
-    dependencies: Object.fromEntries(bundleDependencies.map((name) => [name, bundled[name]])),
+    dependencies: Object.fromEntries(
+      Object.entries(bundled).sort(([a], [b]) => a.localeCompare(b)),
+    ),
+    ...(Object.keys(optional).length > 0 ? { optionalDependencies: optional } : {}),
     bundleDependencies,
   };
 }
 
-const PackageVersion = Schema.Struct({ version: Schema.String });
+const PackageVersion = Schema.Struct({
+  version: Schema.String,
+  os: Schema.optional(Schema.Array(Schema.String)),
+  cpu: Schema.optional(Schema.Array(Schema.String)),
+  libc: Schema.optional(Schema.Array(Schema.String)),
+});
 const decodePackageVersion = Schema.decodeUnknownEffect(Schema.fromJsonString(PackageVersion));
 
 /** Every top-level package under `node_modules`, scoped ones included, at the version its manifest names. */
@@ -129,6 +138,7 @@ const readBundledPackages = Effect.fn("readBundledPackages")(function* (nodeModu
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const bundled: Record<string, string> = {};
+  const optional: Record<string, string> = {};
   const packageDirs: Array<{ readonly name: string; readonly dir: string }> = [];
   for (const entry of yield* fs.readDirectory(nodeModulesDir)) {
     if (entry.startsWith(".")) continue;
@@ -143,9 +153,13 @@ const readBundledPackages = Effect.fn("readBundledPackages")(function* (nodeModu
   }
   for (const { name, dir } of packageDirs) {
     const manifest = yield* fs.readFileString(path.join(dir, "package.json"));
-    bundled[name] = (yield* decodePackageVersion(manifest)).version;
+    const metadata = yield* decodePackageVersion(manifest);
+    // Archives carry several native variants. npm must be free to drop variants
+    // for another OS, CPU, or libc when it checks an installed tree again.
+    const target = metadata.os || metadata.cpu || metadata.libc ? optional : bundled;
+    target[name] = metadata.version;
   }
-  return bundled;
+  return { bundled, optional };
 });
 
 /**
@@ -348,10 +362,10 @@ const stagePlatformPackage = Effect.fn("stagePlatformPackage")(function* (input:
   if (executableName === "t3") {
     yield* fs.chmod(executable, 0o755);
   }
-  const bundled = yield* readBundledPackages(path.join(contentDir, "node_modules"));
+  const { bundled, optional } = yield* readBundledPackages(path.join(contentDir, "node_modules"));
   yield* fs.writeFileString(
     path.join(contentDir, "package.json"),
-    `${yield* encodePackageJson(npmPlatformPackageManifest(input.key, input.version, bundled))}\n`,
+    `${yield* encodePackageJson(npmPlatformPackageManifest(input.key, input.version, bundled, optional))}\n`,
   );
   yield* fs.writeFileString(
     path.join(contentDir, "README.md"),
