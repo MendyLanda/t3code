@@ -88,9 +88,12 @@ jobs:
       - name: Build the server and web client
         run: pnpm exec vp run --filter t3 build
 
+      # The local vp shim uses the active Node. SEA needs the version in the server config.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26.8.2
+
       - name: Build the server executable
-        env:
-          VP_NODE_VERSION: "26.8.2"
         run: pnpm exec node apps/server/scripts/cli.ts build-exe --verbose
 
       - name: Build the resource monitor
