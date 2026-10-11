@@ -24,10 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
-        with:
-          sparse-checkout: .github/scripts
-          persist-credentials: false
+      # Vendored gitlinks break actions/checkout's submodule cleanup.
+      - name: Checkout the detector
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/.github/scripts/'
+          git -c checkout.workers=0 checkout --detach FETCH_HEAD
 
       - uses: actions/setup-node@v6
         with:
