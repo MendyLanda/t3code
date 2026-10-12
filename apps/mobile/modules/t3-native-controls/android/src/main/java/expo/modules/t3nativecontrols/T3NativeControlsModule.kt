@@ -1,6 +1,9 @@
 package expo.modules.t3nativecontrols
 
 import android.content.Intent
+import android.widget.TextView
+import com.facebook.react.bridge.ReactContext
+import com.facebook.react.uimanager.UIManagerHelper
 import android.text.format.DateFormat
 import androidx.core.content.FileProvider
 import expo.modules.kotlin.Promise
@@ -15,6 +18,18 @@ class T3NativeControlsModule : Module() {
   @Suppress("TooGenericExceptionCaught") // Clear the pending promise before rethrowing.
   override fun definition() = ModuleDefinition {
     Name("T3NativeControls")
+
+    Function("naturalTextDirection") { text: String -> naturalTextDirection(text) }
+
+    Function("setNaturalTextAlignment") { reactTag: Int ->
+      val reactContext = appContext.reactContext as? ReactContext ?: return@Function
+      reactContext.runOnUiQueueThread {
+        val textView = runCatching {
+          UIManagerHelper.getUIManagerForReactTag(reactContext, reactTag)?.resolveView(reactTag)
+        }.getOrNull() as? TextView ?: return@runOnUiQueueThread
+        applyNaturalTextAlignment(textView)
+      }
+    }
 
     Function("is24HourFormat") {
       val context = appContext.reactContext ?: error("The app is not active.")

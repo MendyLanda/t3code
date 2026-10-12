@@ -1,0 +1,18 @@
+--- a/android/src/main/java/com/swmansion/enriched/markdown/utils/text/view/TextViewSetup.kt
++++ b/android/src/main/java/com/swmansion/enriched/markdown/utils/text/view/TextViewSetup.kt
+@@ -8,2 +8,3 @@
+ import android.text.SpannableStringBuilder
++import android.view.View
+ import android.view.textclassifier.TextClassifier
+@@ -88,2 +89,4 @@
+ fun AccessibleMarkdownTextView.setupAsMarkdownTextView() {
++  // Preserve first-strong direction with an LTR fallback for neutral paragraphs in RTL locales.
++  textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
+   setBackgroundColor(Color.TRANSPARENT)
+--- a/android/src/main/java/com/swmansion/enriched/markdown/segments/TableContainerView.kt
++++ b/android/src/main/java/com/swmansion/enriched/markdown/segments/TableContainerView.kt
+@@ -617,3 +617,3 @@
+       layoutDirection = View.LAYOUT_DIRECTION_LOCALE
+-      textDirection = View.TEXT_DIRECTION_LOCALE
++      textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
+       importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO

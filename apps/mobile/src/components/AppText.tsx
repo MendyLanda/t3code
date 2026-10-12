@@ -7,10 +7,7 @@ import {
   type TextInputProps as RNTextInputProps,
   type TextProps as RNTextProps,
 } from "react-native";
-import {
-  naturalTextDirection,
-  setNaturalTextAlignment,
-} from "@t3tools/mobile-markdown-text/primitive";
+import { naturalTextDirection, setNaturalTextAlignment } from "../native/naturalTextDirection";
 import { useEffect, useMemo, useRef } from "react";
 
 import { cn } from "../lib/cn";
