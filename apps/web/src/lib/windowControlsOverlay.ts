@@ -7,8 +7,7 @@ import { isMacPlatform, isWindowsPlatform } from "./utils";
 const WCO_CLASS_NAME = "wco";
 const ELECTRON_CLASS_NAME = "electron";
 const ELECTRON_WINDOWS_CLASS_NAME = "electron-windows";
-// The workspace topbar the desktop app centers the traffic lights in. macOS has
-// no overlay API to measure, and the lights stay inside it at any zoom level.
+// The macOS workspace topbar also applies while native controls hide in fullscreen.
 const MACOS_TITLEBAR_HEIGHT = 52;
 
 interface WindowControlsOverlayLike {

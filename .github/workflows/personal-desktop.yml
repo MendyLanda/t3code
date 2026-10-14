@@ -169,6 +169,9 @@ jobs:
       - name: Set the shared release version
         run: pnpm exec node scripts/update-release-package-versions.ts "0.1.${GITHUB_RUN_NUMBER}"
 
+      - name: Check native Mac window controls in English and RTL
+        run: pnpm exec node apps/desktop/scripts/test-macos-window-controls.mjs
+
       - name: Build signed and notarized AHi
         env:
           CSC_LINK: ${{ secrets.PERSONAL_DESKTOP_CSC_LINK }}

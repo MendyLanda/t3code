@@ -55,6 +55,10 @@ vi.mock("node:child_process", () => ({
   execFileSync: execFileSyncMock,
 }));
 
+vi.mock("../window/MacosWindowControls.ts", () => ({
+  getMacosAppLayoutDirection: () => "ltr",
+}));
+
 import * as DesktopPreReadyPlatform from "./DesktopPreReadyPlatform.ts";
 
 describe("DesktopPreReadyPlatform", () => {
@@ -258,7 +262,7 @@ describe("DesktopPreReadyPlatform", () => {
         });
         assert.deepEqual(events, ["pre-ready", "clerk"]);
         assert.equal(registerSchemesMock.mock.calls.length, 1);
-        assert.equal(appendSwitchMock.mock.calls.length, 0);
+        assert.deepEqual(appendSwitchMock.mock.calls, [["force-ui-direction", "ltr"]]);
         assert.equal(setDesktopNameMock.mock.calls.length, 0);
       }),
   );
