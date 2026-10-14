@@ -47,6 +47,13 @@
       "extends": "personal",
       "distribution": "store"
     },
+    "personal:play": {
+      "extends": "personal",
+      "distribution": "store",
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
     "preview:dev": {
       "corepack": true,
       "env": {
@@ -88,6 +95,12 @@
     }
   },
   "submit": {
+    "personal:play": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "completed"
+      }
+    },
     "personal:testflight": {
       "ios": {
         "ascAppId": "6820554865",

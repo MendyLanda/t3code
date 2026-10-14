@@ -1,4 +1,4 @@
-name: Personal iPhone updates
+name: Personal mobile updates
 
 on:
   push:
@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Auto selects an Expo update or a TestFlight build"
+        description: "Auto selects Expo updates or native store builds"
         type: choice
         default: auto
         options: [auto, update, build]
@@ -121,3 +121,98 @@ jobs:
 
           eas build --profile personal:testflight --platform ios --auto-submit --non-interactive --no-wait --freeze-credentials
           echo "Started a private TestFlight build for native fingerprint \`$hash\`." >> "$GITHUB_STEP_SUMMARY"
+
+  android:
+    if: github.repository == 'MendyLanda/t3code' && github.ref == 'refs/heads/personal' && vars.PERSONAL_ANDROID_PLAY_READY == 'true' && github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      T3CODE_MOBILE_FORK: "1"
+      T3CODE_EXPO_OWNER: landavc
+      T3CODE_EXPO_PROJECT_ID: f35da5c2-8940-44ec-856f-19d708d11680
+      T3CODE_APPLE_TEAM_ID: XGJZJY33WG
+      APP_VARIANT: preview
+      MOBILE_VERSION_POLICY: fingerprint
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+
+      - name: Install mobile dependencies and build tools
+        run: pnpm install --frozen-lockfile --filter @t3tools/mobile... --filter .
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: 24.12.0
+          token: ${{ secrets.PERSONAL_EXPO_TOKEN }}
+          packager: npm
+
+      - name: Verify the personal Android app configuration
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.PERSONAL_EXPO_TOKEN }}
+        run: |
+          eas config --platform android --profile personal:play --json > "$RUNNER_TEMP/personal-android-config.json"
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import assert from "node:assert/strict";
+            const { appConfig: app, buildProfile } = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/personal-android-config.json", "utf8"));
+            assert.equal(app.name, "AHi");
+            assert.equal(app.owner, "landavc");
+            assert.equal(app.android.package, "com.mendylanda.t3code");
+            assert.equal(app.extra.eas.projectId, "f35da5c2-8940-44ec-856f-19d708d11680");
+            assert.equal(app.updates.url, "https://u.expo.dev/f35da5c2-8940-44ec-856f-19d708d11680");
+            assert.equal(app.updates.enabled, true);
+            assert.equal(app.runtimeVersion.policy, "fingerprint");
+            assert.equal(buildProfile.distribution, "store");
+            assert.equal(buildProfile.buildType, "app-bundle");
+            assert.equal(buildProfile.channel, "personal");
+            const submission = JSON.parse(fs.readFileSync("eas.json", "utf8")).submit["personal:play"].android;
+            assert.equal(submission.track, "internal");
+            assert.equal(submission.releaseStatus, "completed");
+          '
+
+      - name: Publish an Android update or start an internal Play build
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.PERSONAL_EXPO_TOKEN }}
+          REQUESTED_MODE: ${{ inputs.mode || 'auto' }}
+        run: |
+          set -euo pipefail
+          eas fingerprint:generate --platform android --environment preview --json --non-interactive > "$RUNNER_TEMP/personal-android-fingerprint-output.txt"
+          sed -n '/^{/,$p' "$RUNNER_TEMP/personal-android-fingerprint-output.txt" > "$RUNNER_TEMP/personal-android-fingerprint.json"
+          hash=$(jq -er '.hash | select(type == "string" and length > 0)' "$RUNNER_TEMP/personal-android-fingerprint.json")
+          jq -e 'any(.sources[]; (.id // "") | startswith("expoConfig"))' "$RUNNER_TEMP/personal-android-fingerprint.json" > /dev/null
+          matching=$(eas build:list --platform android --build-profile personal:play --channel personal --status finished --fingerprint-hash "$hash" --limit 1 --json --non-interactive | jq 'length')
+
+          if [[ "$REQUESTED_MODE" != "build" && "$matching" -gt 0 ]]; then
+            message="$(git log -1 --pretty=%s | head -c 120) ($(git rev-parse --short=9 HEAD))"
+            eas update --channel personal --environment preview --platform android --message "$message" --non-interactive
+            echo "Published an Android Expo update for native fingerprint \`$hash\`." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [[ "$REQUESTED_MODE" == "update" ]]; then
+            echo "::error::No Android store build matches this native code. Run mode=build first."
+            exit 1
+          fi
+
+          active=$(eas build:list --platform android --build-profile personal:play --fingerprint-hash "$hash" --limit 10 --json --non-interactive | jq '[.[] | select(.status == "NEW" or .status == "IN_QUEUE" or .status == "IN_PROGRESS")] | length')
+          if [[ "$active" -gt 0 ]]; then
+            echo "A matching internal Play build is already running." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          eas build --profile personal:play --platform android --auto-submit --non-interactive --no-wait --freeze-credentials
+          echo "Started an internal Play build for native fingerprint \`$hash\`." >> "$GITHUB_STEP_SUMMARY"

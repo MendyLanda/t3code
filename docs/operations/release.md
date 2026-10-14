@@ -33,9 +33,15 @@ The workflow skips publication until these repository secrets are set:
 Use certificates and API keys for Apple team `XGJZJY33WG`. This build uses browser sign-in;
 the upstream team's native passkey provisioning profile does not apply to the fork.
 
-The [Personal iPhone updates workflow](../../.github/workflows/personal-mobile.yml) publishes
+The [Personal mobile updates workflow](../../.github/workflows/personal-mobile.yml) publishes
 Expo updates when the native runtime matches an existing build. Native changes create a new
-TestFlight build. Keep the upstream release workflows disabled in this fork.
+TestFlight build on iOS or an internal Google Play release on Android. Both use the personal
+Expo project and channel. Set `PERSONAL_ANDROID_PLAY_READY=true` only after configuring the
+Android upload key, assigning the Play submission service account to `com.mendylanda.t3code`
+in EAS, and making the first internal Play release available to the private tester list.
+The `personal:play` profile creates an app bundle and submits only to the internal track.
+The monthly TestFlight refresh applies only to iOS. Keep the upstream release workflows disabled
+in this fork.
 
 On `oldy`, the user timer `ahi-upstream-check.timer` checks published stable and nightly releases
 every 30 minutes through [the local watcher](../../.github/scripts/personal-upstream-watch.mjs).
