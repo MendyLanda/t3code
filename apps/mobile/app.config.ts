@@ -249,7 +249,7 @@ const config: ExpoConfig = {
   slug: isPersonalForkBuild ? "t3-code-personal" : "t3-code",
   platforms: ["ios", "android"],
   scheme: isPersonalForkBuild ? "t3code-personal" : variant.scheme,
-  version: "2.0.0",
+  version: repoEnv.T3CODE_MOBILE_VERSION ?? "2.0.0",
   runtimeVersion: {
     // Development manifests resolve on every launch, so avoid fingerprint's
     // expensive native-project calculation there. Preview and production stay
