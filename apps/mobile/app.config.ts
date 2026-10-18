@@ -511,6 +511,10 @@ const config: ExpoConfig = {
     ...(expoProjectId ? { eas: { projectId: expoProjectId } } : {}),
   },
   owner: isPersonalForkBuild ? repoEnv.T3CODE_EXPO_OWNER?.trim() || undefined : "pingdotgg",
+  experiments: {
+    // Metro only runs babel-plugin-react-compiler when this is set; see src/reactCompilerCoverage.test.ts.
+    reactCompiler: true,
+  },
 };
 
 export default config;
