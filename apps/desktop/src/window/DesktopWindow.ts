@@ -294,7 +294,11 @@ export const make = Effect.gen(function* () {
     }
   });
 
-  // Window lookups fall back to the first window, which may be the splash.
+  // currentMainOrFirst / focusedMainOrFirst fall back to "any first window",
+  // which during WSL-only boot is the connecting splash. The splash is never
+  // registered via setMain, so it must be treated as "no real main window" --
+  // otherwise ensureMain/activate/dispatchMenuAction latch onto it and never
+  // open (or retry) the real main.
   const withoutSplash = (window: Option.Option<Electron.BrowserWindow>) =>
     Ref.get(splashWindowRef).pipe(
       Effect.map((splash) =>
@@ -358,8 +362,8 @@ export const make = Effect.gen(function* () {
     if (yield* Ref.get(desktopState.quitting)) return Option.none();
     const window = yield* electronWindow.create({
       ...initialBounds,
-      minWidth: DesktopAppSettings.MIN_MAIN_WINDOW_SIZE.width,
-      minHeight: DesktopAppSettings.MIN_MAIN_WINDOW_SIZE.height,
+      minWidth: 840,
+      minHeight: 620,
       show: false,
       autoHideMenuBar: true,
       ...(environment.platform === "darwin" ? { disableAutoHideCursor: true } : {}),
