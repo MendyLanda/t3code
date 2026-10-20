@@ -11,7 +11,7 @@
    setBackgroundColor(Color.TRANSPARENT)
 --- a/android/src/main/java/com/swmansion/enriched/markdown/segments/TableContainerView.kt
 +++ b/android/src/main/java/com/swmansion/enriched/markdown/segments/TableContainerView.kt
-@@ -617,3 +617,3 @@
+@@ -695,3 +695,3 @@
        layoutDirection = View.LAYOUT_DIRECTION_LOCALE
 -      textDirection = View.TEXT_DIRECTION_LOCALE
 +      textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
