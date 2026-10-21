@@ -11,10 +11,10 @@ import {
   makeDevelopmentEnvironmentScript,
   makeDevelopmentLauncherScript,
   resolveElectronBinaryPath,
+  resolveMacLauncherPaths,
   resolveMacBundleInfoPlistStrings,
   resolveMacCodeSignArguments,
   resolveMacLauncherIconPaths,
-  resolveMacLauncherPaths,
   writeDevelopmentLauncherScript,
 } from "./electron-launcher.mjs";
 
