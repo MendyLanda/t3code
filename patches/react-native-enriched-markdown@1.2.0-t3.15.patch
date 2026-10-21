@@ -1,3 +1,4 @@
+diff --git a/android/src/main/java/com/swmansion/enriched/markdown/utils/text/view/TextViewSetup.kt b/android/src/main/java/com/swmansion/enriched/markdown/utils/text/view/TextViewSetup.kt
 --- a/android/src/main/java/com/swmansion/enriched/markdown/utils/text/view/TextViewSetup.kt
 +++ b/android/src/main/java/com/swmansion/enriched/markdown/utils/text/view/TextViewSetup.kt
 @@ -8,2 +8,3 @@
@@ -9,6 +10,7 @@
 +  // Preserve first-strong direction with an LTR fallback for neutral paragraphs in RTL locales.
 +  textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
    setBackgroundColor(Color.TRANSPARENT)
+diff --git a/android/src/main/java/com/swmansion/enriched/markdown/segments/TableContainerView.kt b/android/src/main/java/com/swmansion/enriched/markdown/segments/TableContainerView.kt
 --- a/android/src/main/java/com/swmansion/enriched/markdown/segments/TableContainerView.kt
 +++ b/android/src/main/java/com/swmansion/enriched/markdown/segments/TableContainerView.kt
 @@ -695,3 +695,3 @@
