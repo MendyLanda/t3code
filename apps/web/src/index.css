@@ -1912,7 +1912,7 @@ code {
 }
 
 .composer-tiptap ul {
-  padding-left: max(1.25rem, 2ch);
+  padding-inline-start: max(1.25rem, 2ch);
 }
 
 :is(.chat-markdown, .composer-tiptap) ul ul {

@@ -979,8 +979,8 @@ const CHAT_MARKDOWN_COMPONENTS = {
     }
     return (
       <div
-        dir={props.dir}
         role="note"
+        dir={props.dir}
         className={cn("my-1 border-s-2 ps-3", alert.borderClassName)}
       >
         <p

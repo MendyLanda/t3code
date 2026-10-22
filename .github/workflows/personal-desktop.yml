@@ -91,7 +91,7 @@ jobs:
       # The local vp shim uses the active Node. SEA needs the version in the server config.
       - uses: actions/setup-node@v6
         with:
-          node-version: 26.8.2
+          node-version: 26.12.1
 
       - name: Build the server executable
         run: pnpm exec node apps/server/scripts/cli.ts build-exe --verbose
