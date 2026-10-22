@@ -26,7 +26,9 @@ internal fun applyNaturalTextAlignment(textView: TextView) {
       TextDirectionHeuristics.FIRSTSTRONG_LTR.isRtl(text, start, end - start) ==
         TextDirectionHeuristics.FIRSTSTRONG_RTL.isRtl(text, start, end - start)
     // RN measures neutral paragraphs with LTR fallback; TextView inherits its root direction.
-    val alignment = if (textView.layoutDirection == View.LAYOUT_DIRECTION_RTL && !hasStrongDirection) {
+    val alignment = if (textView.layoutDirection == View.LAYOUT_DIRECTION_RTL &&
+      !hasStrongDirection
+    ) {
       Layout.Alignment.ALIGN_OPPOSITE
     } else {
       Layout.Alignment.ALIGN_NORMAL
@@ -36,11 +38,14 @@ internal fun applyNaturalTextAlignment(textView: TextView) {
   }
   val existing = (text as? Spanned)?.getSpans(0, text.length, NaturalAlignmentSpan::class.java)
     ?: emptyArray()
-  if (text is Spanned && existing.size == paragraphs.size && paragraphs.withIndex().all { (index, paragraph) ->
+  if (text is Spanned && existing.size == paragraphs.size) {
+    val matches = paragraphs.withIndex().all { (index, paragraph) ->
       val (first, last, alignment) = paragraph
       text.getSpanStart(existing[index]) == first && text.getSpanEnd(existing[index]) == last &&
         existing[index].alignment == alignment
-    }) return
+    }
+    if (matches) return
+  }
   // Keep RN's cached buffer untouched. Paragraph spans follow the text and cannot leak into
   // recycled UI/code views, unlike changing TextView's alignment or direction properties.
   val aligned = SpannableString(text)
