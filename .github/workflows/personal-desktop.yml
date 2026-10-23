@@ -73,11 +73,9 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.13.1
+          node-version-file: package.json
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11.10.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --filter t3... --filter @t3tools/scripts... --filter .
@@ -87,11 +85,6 @@ jobs:
 
       - name: Build the server and web client
         run: pnpm exec vp run --filter t3 build
-
-      # The local vp shim uses the active Node. SEA needs the version in the server config.
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 26.12.1
 
       - name: Build the server executable
         run: pnpm exec node apps/server/scripts/cli.ts build-exe --verbose
@@ -157,11 +150,9 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.13.1
+          node-version-file: package.json
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11.10.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
